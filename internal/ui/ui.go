@@ -142,7 +142,8 @@ func (m Model) View() string {
 		s += "\nPress 'n' to add a new URL.\n"
 	}
 
-	s += fmt.Sprintf("\nStatus: %s\n", m.response)
+	s += "\nStatus:" + statusStyle.Render(m.response) + "\n"
+
 	if !m.isTyping {
 		s += itemStyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
 	}
