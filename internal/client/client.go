@@ -1,6 +1,9 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -11,18 +14,34 @@ type ServerStatusMsg struct {
 	URL string
 	Status int
 	Err error
+	Body string
 }
 
 func CheckServer(url string) tea.Cmd {
 	return func() tea.Msg {
 		c := &http.Client{Timeout: 5 * time.Second}
 		resp, err := c.Get(url)
-
+		
 		if err != nil {
 			return ServerStatusMsg{URL: url, Err: err}
 		}
 		defer resp.Body.Close()
 
-		return ServerStatusMsg{URL: url, Status: resp.StatusCode}
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return ServerStatusMsg{URL: url, Err: err}
+		}
+
+		var prettyJSON bytes.Buffer
+		err = json.Indent(&prettyJSON, bodyBytes, "", "  ")
+
+		bodyString := ""
+		if err == nil {
+			bodyString = prettyJSON.String()
+		} else {
+			bodyString = string(bodyBytes) 
+		}
+
+		return ServerStatusMsg{URL: url, Status: resp.StatusCode, Body: bodyString}
 	}
 }

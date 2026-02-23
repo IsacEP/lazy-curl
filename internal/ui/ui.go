@@ -63,8 +63,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case client.ServerStatusMsg:
 		if msg.Err != nil {
 			m.response = fmt.Sprintf("Error checking %s: %v", msg.URL, msg.Err)
+			m.responseBody = msg.Err.Error()
 		} else {
 			m.response = fmt.Sprintf("Success! %s returned status %d", msg.URL, msg.Status)
+			m.responseBody = "Status Code: " + fmt.Sprint(msg.Status) + "\n"
+			m.responseBody += "JSON: " + fmt.Sprint(msg.Body) 
 		}
 		return m, nil
 
