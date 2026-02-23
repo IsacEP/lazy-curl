@@ -33,6 +33,7 @@ type Model struct {
 	isTyping  bool
 	focusedPane int
 	responseBody string
+	baseURL string
 }
 
 func New() Model {
@@ -99,17 +100,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "up", "k":
-			if m.focusedPane == 0 && m.cursor > 0 {
+			if m.focusedPane == 1 && m.cursor > 0 {
 				m.cursor--
 			}
 
 		case "down", "j":
-			if m.focusedPane == 0 && m.cursor < len(m.items)-1 {
+			if m.focusedPane == 1 && m.cursor < len(m.items)-1 {
 				m.cursor++
 			}
 
 		case " ":
-			if m.focusedPane == 0 {
+			if m.focusedPane == 1 {
 				_, ok := m.selected[m.cursor]
 				if ok {
 					delete(m.selected, m.cursor)
@@ -119,20 +120,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter":
-			if m.focusedPane == 0 {
+			if m.focusedPane == 1 {
 				url := m.items[m.cursor]
 				m.response = fmt.Sprintf("Checking %s...", url)
 				return m, client.CheckServer(url)
 			}
 
 		case "n":
-			if m.focusedPane == 0 {
+			if m.focusedPane == 1 {
 				m.isTyping = true
 				m.textInput.Focus()
 				return m, textinput.Blink
 			}
-		
-		case "tab", "left", "right":
+		case "tab":
+			m.focusedPane = (m.focusedPane + 1) % 3
+		case "left", "right":
 			if m.focusedPane == 0 {
 				m.focusedPane = 1
 			} else {
@@ -145,6 +147,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	header := titleStyle.Render("Welcome to lazy-curl!") + "\n"
+
+	topContent := "SET BASE URL: "
 
 	leftContent := ""
 	for i, item := range m.items {
@@ -175,21 +179,34 @@ func (m Model) View() string {
 
 	rightContent := m.responseBody
 
+	topBox := baseBoxStyle.Copy().Width(94).Height(5)
 	leftBox := baseBoxStyle.Copy().Width(40).Height(15)
 	rightBox := baseBoxStyle.Copy().Width(50).Height(15)
 
 	if m.focusedPane == 0 {
+		topBox = topBox.BorderForeground(activeBorder)
+	} else {
+		topBox = topBox.BorderForeground(inactiveBorder)
+	}
+	if m.focusedPane == 1 {
 		leftBox = leftBox.BorderForeground(activeBorder)
-		rightBox = rightBox.BorderForeground(inactiveBorder)
 	} else {
 		leftBox = leftBox.BorderForeground(inactiveBorder)
-		rightBox = rightBox.BorderForeground(activeBorder)
 	}
 
+	if m.focusedPane == 2 {
+		rightBox = rightBox.BorderForeground(activeBorder)
+	} else {
+		rightBox = rightBox.BorderForeground(inactiveBorder)
+	}
+
+	renderTop := topBox.Render(topContent)
 	renderLeft := leftBox.Render(leftContent)
 	renderRight := rightBox.Render(rightContent)
 
-	grid := lipgloss.JoinHorizontal(lipgloss.Top, renderLeft, renderRight)
+	bottomHalf := lipgloss.JoinHorizontal(lipgloss.Top, renderLeft, renderRight)
+
+	grid := lipgloss.JoinVertical(lipgloss.Left, renderTop, bottomHalf)
 
 	status := "\nStatus:" + statusStyle.Render(m.response) + "\n"
 
