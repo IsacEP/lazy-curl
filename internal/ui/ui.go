@@ -34,13 +34,19 @@ type Model struct {
 	focusedPane int
 	responseBody string
 	baseURL string
+	baseURLinput textinput.Model
 }
 
 func New() Model {
 	ti := textinput.New()
-	ti.Placeholder = "Some Random Text Here"
+	ti.Placeholder = "Enter New Endpoint: "
 	ti.CharLimit = 156
 	ti.Width = 50
+
+	urlti := textinput.New()
+	urlti.Placeholder = "Please Enter Base URL: "
+	urlti.CharLimit = 156
+	urlti.Width = 50
 
 	return Model {
 		items:     []string{"TEST", "GET /api/users", "POST /api/users", "GET /api/settings"},
@@ -50,6 +56,8 @@ func New() Model {
 		isTyping:  false,
 		focusedPane: 0,
 		responseBody: "response body",
+		baseURL: "",
+		baseURLinput: urlti,
 	}
 }
 
@@ -76,22 +84,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.isTyping {
 			switch msg.String() {
 			case "enter":
-				val := m.textInput.Value()
-				if val != "" {
-					m.items = append(m.items, val)
-					m.textInput.Reset()
+				if m.focusedPane == 1 {
+					val := m.textInput.Value()
+					if val != "" {
+						m.items = append(m.items, val)
+						m.textInput.Reset()
+					}
+					m.isTyping = false
+					m.textInput.Blur()
+					return m, nil
 				}
-				m.isTyping = false
-				m.textInput.Blur()
-				return m, nil
-
+				if m.focusedPane == 0 {
+					val := m.baseURLinput.Value()
+					if val != "" {
+						m.baseURL = val
+					}
+					m.isTyping = false
+					m.baseURLinput.Blur()
+					return m, nil
+				}
 			case "esc":
 				m.isTyping = false
 				m.textInput.Blur()
 				return m, nil
 			}
 
-			m.textInput, cmd = m.textInput.Update(msg)
+			if m.focusedPane == 1 {
+				m.textInput, cmd = m.textInput.Update(msg)
+			} else if m.focusedPane == 0 {
+				m.baseURLinput, cmd = m.baseURLinput.Update(msg)
+			}
 			return m, cmd
 		}
 
@@ -132,14 +154,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.Focus()
 				return m, textinput.Blink
 			}
+		case "u":
+			if m.focusedPane == 0 {
+				m.isTyping = true
+				m.baseURLinput.Focus()
+				return m, textinput.Blink
+			}
 		case "tab":
 			m.focusedPane = (m.focusedPane + 1) % 3
-		case "left", "right":
-			if m.focusedPane == 0 {
-				m.focusedPane = 1
-			} else {
-				m.focusedPane = 0
+		case "left":
+			m.focusedPane--
+			if m.focusedPane < 0 {
+				m.focusedPane = 2
 			}
+		case "right":
+			m.focusedPane = (m.focusedPane + 1) % 3
 		}
 	}
 	return m, nil
@@ -147,9 +176,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	header := titleStyle.Render("Welcome to lazy-curl!") + "\n"
-
-	topContent := "SET BASE URL: "
-
 	leftContent := ""
 	for i, item := range m.items {
 		cursor := " "
@@ -164,7 +190,7 @@ func (m Model) View() string {
 
         line := fmt.Sprintf("%s [%s] %s\n", cursor, checked, item)
 
-		if m.cursor == i && m.focusedPane == 0 {
+		if m.cursor == i && m.focusedPane == 1 {
 			leftContent += cursorStyle.Render(line) + "\n"
 		} else {
 			leftContent += itemStyle.Render(line) + "\n"
@@ -174,11 +200,21 @@ func (m Model) View() string {
 	if m.isTyping {
 		leftContent += fmt.Sprintf("\nEnter new URL:\n%s\n(Press Enter to save, Esc to cancel)\n", m.textInput.View())
 	} else {
-		leftContent += "\nPress 'n' to add a new URL.\n"
+		leftContent += "\nPress 'n' to add a new Endpoint.\n"
 	}
 
 	rightContent := m.responseBody
 
+	topContent := ""
+	if m.isTyping {
+		topContent += fmt.Sprintf("Set Base URL:\n%s\n", m.baseURLinput.View())
+	} else {
+		if m.baseURL != "" {
+			topContent += m.baseURL
+		} else {
+			topContent += "\nPress 'u' to add a new base URL"
+		}
+	}
 	topBox := baseBoxStyle.Copy().Width(94).Height(5)
 	leftBox := baseBoxStyle.Copy().Width(40).Height(15)
 	rightBox := baseBoxStyle.Copy().Width(50).Height(15)
