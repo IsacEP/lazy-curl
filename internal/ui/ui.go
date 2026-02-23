@@ -17,6 +17,11 @@ var (
 	itemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0"))
 
 	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB")).Italic(true)
+
+	activeBorder = lipgloss.Color("#ff5ec9")
+	inactiveBorder = lipgloss.Color("#91579b")
+
+	baseBoxStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
 )
 
 type Model struct {
@@ -26,6 +31,8 @@ type Model struct {
 	response string
 	textInput textinput.Model
 	isTyping  bool
+	focusedPane int
+	responseBody string
 }
 
 func New() Model {
@@ -40,6 +47,8 @@ func New() Model {
 		response:  "Ready to use server",
 		textInput: ti,
 		isTyping:  false,
+		focusedPane: 0,
+		responseBody: "response body",
 	}
 }
 
@@ -85,37 +94,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+
 		case "up", "k":
-			if m.cursor > 0 {
+			if m.focusedPane == 0 && m.cursor > 0 {
 				m.cursor--
 			}
+
 		case "down", "j":
-			if m.cursor < len(m.items)-1 {
+			if m.focusedPane == 0 && m.cursor < len(m.items)-1 {
 				m.cursor++
 			}
+
 		case " ":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
+			if m.focusedPane == 0 {
+				_, ok := m.selected[m.cursor]
+				if ok {
+					delete(m.selected, m.cursor)
+				} else {
+					m.selected[m.cursor] = struct{}{}
+				}
 			}
+
 		case "enter":
-			url := m.items[m.cursor]
-			m.response = fmt.Sprintf("Checking %s...", url)
-			return m, client.CheckServer(url)
+			if m.focusedPane == 0 {
+				url := m.items[m.cursor]
+				m.response = fmt.Sprintf("Checking %s...", url)
+				return m, client.CheckServer(url)
+			}
+
 		case "n":
-			m.isTyping = true
-			m.textInput.Focus()
-			return m, textinput.Blink
+			if m.focusedPane == 0 {
+				m.isTyping = true
+				m.textInput.Focus()
+				return m, textinput.Blink
+			}
+		
+		case "tab", "left", "right":
+			if m.focusedPane == 0 {
+				m.focusedPane = 1
+			} else {
+				m.focusedPane = 0
+			}
 		}
 	}
 	return m, nil
 }
 
 func (m Model) View() string {
-	s := titleStyle.Render("Welcome to lazy-curl!") + "\n"
+	header := titleStyle.Render("Welcome to lazy-curl!") + "\n"
 
+	leftContent := ""
 	for i, item := range m.items {
 		cursor := " "
 		if m.cursor == i {
@@ -129,23 +157,40 @@ func (m Model) View() string {
 
         line := fmt.Sprintf("%s [%s] %s\n", cursor, checked, item)
 
-		if m.cursor == i {
-			s += cursorStyle.Render(line) + "\n"
+		if m.cursor == i && m.focusedPane == 0 {
+			leftContent += cursorStyle.Render(line) + "\n"
 		} else {
-			s += itemStyle.Render(line) + "\n"
+			leftContent += itemStyle.Render(line) + "\n"
 		}
 	}
 
 	if m.isTyping {
-		s += fmt.Sprintf("\nEnter new URL:\n%s\n(Press Enter to save, Esc to cancel)\n", m.textInput.View())
+		leftContent += fmt.Sprintf("\nEnter new URL:\n%s\n(Press Enter to save, Esc to cancel)\n", m.textInput.View())
 	} else {
-		s += "\nPress 'n' to add a new URL.\n"
+		leftContent += "\nPress 'n' to add a new URL.\n"
 	}
 
-	s += "\nStatus:" + statusStyle.Render(m.response) + "\n"
+	rightContent := m.responseBody
 
-	if !m.isTyping {
-		s += itemStyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
+	leftBox := baseBoxStyle.Copy().Width(40).Height(15)
+	rightBox := baseBoxStyle.Copy().Width(50).Height(15)
+
+	if m.focusedPane == 0 {
+		leftBox = leftBox.BorderForeground(activeBorder)
+		rightBox = rightBox.BorderForeground(inactiveBorder)
+	} else {
+		leftBox = leftBox.BorderForeground(inactiveBorder)
+		rightBox = rightBox.BorderForeground(activeBorder)
 	}
-	return s
+
+	renderLeft := leftBox.Render(leftContent)
+	renderRight := rightBox.Render(rightContent)
+
+	grid := lipgloss.JoinHorizontal(lipgloss.Top, renderLeft, renderRight)
+
+	status := "\nStatus:" + statusStyle.Render(m.response) + "\n"
+
+	helper := itemStyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
+
+	return header + grid + status + helper
 }
