@@ -6,6 +6,17 @@ import (
 	"github.com/IsacEP/lazy-curl/internal/client"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#7D56F4")).Padding(0, 1).MarginBottom(1)
+
+	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Bold(true)
+
+	itemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0"))
+
+	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB")).Italic(true)
 )
 
 type Model struct {
@@ -103,7 +114,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	s := "Welcome to lazy-curl!\n\n"
+	s := titleStyle.Render("Welcome to lazy-curl!") + "\n"
 
 	for i, item := range m.items {
 		cursor := " "
@@ -116,7 +127,13 @@ func (m Model) View() string {
 			checked = "x"
 		}
 
-        s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, item)
+        line := fmt.Sprintf("%s [%s] %s\n", cursor, checked, item)
+
+		if m.cursor == i {
+			s += cursorStyle.Render(line) + "\n"
+		} else {
+			s += itemStyle.Render(line) + "\n"
+		}
 	}
 
 	if m.isTyping {
@@ -126,6 +143,8 @@ func (m Model) View() string {
 	}
 
 	s += fmt.Sprintf("\nStatus: %s\n", m.response)
-	s += "\nPress j/k or up/down to move, q to quit.\n"
+	if !m.isTyping {
+		s += itemStyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
+	}
 	return s
 }
