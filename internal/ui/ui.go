@@ -50,7 +50,7 @@ func New() Model {
 	urlti.Width = 50
 
 	return Model {
-		endpoints:     []string{"TEST", "GET /api/users", "POST /api/users", "GET /api/settings"},
+		endpoints:     []string{"TEST"},
 		selected:  make(map[int]struct{}),
 		response:  "Ready to use server",
 		textInput: ti,
