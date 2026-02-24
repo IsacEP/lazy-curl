@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/IsacEP/lazy-curl/internal/client"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -143,9 +144,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.focusedPane == 1 {
-				url := m.endpoints[m.cursor]
-				m.response = fmt.Sprintf("Checking %s...", url)
-				return m, client.CheckServer(url)
+				rawEndpoint := m.endpoints[m.cursor]
+				path := rawEndpoint
+				parts := strings.Fields(rawEndpoint)
+				if (len(parts)) > 1 {
+					path = parts[1]
+				}
+				cleanBase := strings.TrimSuffix(m.baseURL, "/")
+				cleanPath := strings.TrimPrefix(path, "/")
+
+				fullURL := cleanBase + "/" + cleanPath
+				if !strings.HasPrefix(fullURL, "http://") && !strings.HasPrefix(fullURL, "https://") {
+					fullURL = "http://" + fullURL
+				}
+				m.response = fmt.Sprintf("Checking %s...", fullURL)
+				return m, client.CheckServer(fullURL)
 			}
 
 		case "n":
