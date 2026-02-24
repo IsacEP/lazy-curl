@@ -49,59 +49,97 @@ func CheckServer(url string) tea.Cmd {
 func SendRequest(url string, method string, data string) tea.Cmd {
 	switch method {
 	case "GET":
-		return get(url)
+		return doGet(url)
 	case "POST":
-		return post(url, data)
+		return doPost(url, data)
 	case "PUT":
-		return put(url, data)
+		return doPut(url, data)
 	case "PATCH":
-		return patch(url, data)
+		return doPatch(url, data)
 	case "DELETE":
-		delete(url, data)
+		return doDelete(url, data)
+	default:
+		return doGet(url)
 	}
 }
 
-func delete(url, data string) tea.Cmd {
-	panic("unimplemented")
-}
-
-func patch(url, data string) tea.Cmd {
-	panic("unimplemented")
-}
-
-func put(url, data string) tea.Cmd {
-	panic("unimplemented")
-}
-
-func post(url, data string) tea.Cmd {
-	panic("unimplemented")
-}
-
-func get(url string) tea.Cmd {
+func doGet(url string) tea.Cmd {
 	return func() tea.Msg {
-		c := &http.Client{Timeout: 5 * time.Second}
-		resp, err := c.Get(url)
-		
+		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return ServerStatusMsg{URL: url, Err: err}
 		}
-		defer resp.Body.Close()
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return ServerStatusMsg{URL: url, Err: err}
-		}
-
-		var prettyJSON bytes.Buffer
-		err = json.Indent(&prettyJSON, bodyBytes, "", "  ")
-
-		bodyString := ""
-		if err == nil {
-			bodyString = prettyJSON.String()
-		} else {
-			bodyString = string(bodyBytes) 
-		}
-
-		return ServerStatusMsg{URL: url, Status: resp.StatusCode, Body: bodyString}
+		return executeRequest(req, url)
 	}
+}
+
+func doPost(url string, data string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(data)))
+		if err != nil {
+			return ServerStatusMsg{URL: url, Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return executeRequest(req, url)
+	}
+}
+
+func doPut(url string, data string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(data)))
+		if err != nil {
+			return ServerStatusMsg{URL: url, Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return executeRequest(req, url)
+	}
+}
+
+func doPatch(url string, data string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest("PATCH", url, bytes.NewBuffer([]byte(data)))
+		if err != nil {
+			return ServerStatusMsg{URL: url, Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return executeRequest(req, url)
+	}
+}
+
+func doDelete(url string, data string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest("DELETE", url, bytes.NewBuffer([]byte(data)))
+		if err != nil {
+			return ServerStatusMsg{URL: url, Err: err}
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return executeRequest(req, url)
+	}
+}
+
+func executeRequest(req *http.Request, url string) tea.Msg {
+	c := &http.Client{Timeout: 5 * time.Second}
+	resp, err := c.Do(req)
+
+	if err != nil {
+		return ServerStatusMsg{URL: url, Err: err}
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ServerStatusMsg{URL: url, Err: err}
+	}
+
+	var prettyJSON bytes.Buffer
+	err = json.Indent(&prettyJSON, bodyBytes, "", "  ")
+
+	bodyString := ""
+	if err == nil {
+		bodyString = prettyJSON.String()
+	} else {
+		bodyString = string(bodyBytes)
+	}
+
+	return ServerStatusMsg{URL: url, Status: resp.StatusCode, Body: bodyString}
 }
