@@ -36,6 +36,8 @@ type Model struct {
 	responseBody string
 	baseURL string
 	baseURLinput textinput.Model
+	methods []string
+	methodCursor int
 }
 
 func New() Model {
@@ -50,15 +52,17 @@ func New() Model {
 	urlti.Width = 50
 
 	return Model {
-		endpoints:     []string{"TEST"},
-		selected:  make(map[int]struct{}),
-		response:  "Ready to use server",
+		endpoints: []string{"TEST"},
+		selected: make(map[int]struct{}),
+		response: "Ready to use server",
 		textInput: ti,
-		isTyping:  false,
+		isTyping: false,
 		focusedPane: 0,
 		responseBody: "response body",
 		baseURL: "",
 		baseURLinput: urlti,
+		methods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		methodCursor: 0,
 	}
 }
 
@@ -88,7 +92,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focusedPane == 1 {
 					val := m.textInput.Value()
 					if val != "" {
-						m.endpoints = append(m.endpoints, val)
+						finalEndpoint := fmt.Sprintf("%s %s", m.methods[m.methodCursor], val)
+						m.endpoints = append(m.endpoints, finalEndpoint)
 						m.textInput.Reset()
 					}
 					m.isTyping = false
@@ -108,6 +113,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isTyping = false
 				m.textInput.Blur()
 				return m, nil
+
+			case "up":
+				if m.focusedPane == 1 {
+					m.methodCursor--
+					if m.methodCursor < 0{
+						m.methodCursor = len(m.methods) - 1
+					}
+					m.textInput.Prompt = fmt.Sprintf("[%s] ", m.methods[m.methodCursor])
+					return m, nil
+				}
+
+			case "down":
+				if m.focusedPane == 1 {
+					m.methodCursor = (m.methodCursor + 1) % len(m.methods)
+					m.textInput.Prompt = fmt.Sprintf("[%s] ", m.methods[m.methodCursor])
+					return m, nil
+				}
 			}
 
 			if m.focusedPane == 1 {
@@ -170,6 +192,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "u":
 			if m.focusedPane == 0 {
 				m.isTyping = true
+				m.textInput.Prompt = fmt.Sprintf("[%s] ", m.methods[m.methodCursor])
 				m.baseURLinput.Focus()
 				return m, textinput.Blink
 			}
@@ -210,8 +233,8 @@ func (m Model) View() string {
 		}
 	}
 
-	if m.isTyping {
-		leftContent += fmt.Sprintf("\nEnter new URL:\n%s\n(Press Enter to save, Esc to cancel)\n", m.textInput.View())
+	if m.isTyping && m.focusedPane == 1 {
+		leftContent += fmt.Sprintf("\nEnter new Endpoint:\n%s\n(Up/Down: change method, Enter: save)\n", m.textInput.View())
 	} else {
 		leftContent += "\nPress 'n' to add a new Endpoint.\n"
 	}
@@ -237,6 +260,7 @@ func (m Model) View() string {
 	} else {
 		topBox = topBox.BorderForeground(inactiveBorder)
 	}
+
 	if m.focusedPane == 1 {
 		leftBox = leftBox.BorderForeground(activeBorder)
 	} else {
