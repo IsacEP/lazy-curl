@@ -14,7 +14,7 @@ var (
 
 	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Bold(true)
 
-	itemStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0"))
+	endpointstyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0"))
 
 	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB")).Italic(true)
 
@@ -26,7 +26,7 @@ var (
 
 type Model struct {
 	cursor int
-	items []string
+	endpoints []string
 	selected map[int]struct{}
 	response string
 	textInput textinput.Model
@@ -49,7 +49,7 @@ func New() Model {
 	urlti.Width = 50
 
 	return Model {
-		items:     []string{"TEST", "GET /api/users", "POST /api/users", "GET /api/settings"},
+		endpoints:     []string{"TEST", "GET /api/users", "POST /api/users", "GET /api/settings"},
 		selected:  make(map[int]struct{}),
 		response:  "Ready to use server",
 		textInput: ti,
@@ -87,7 +87,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focusedPane == 1 {
 					val := m.textInput.Value()
 					if val != "" {
-						m.items = append(m.items, val)
+						m.endpoints = append(m.endpoints, val)
 						m.textInput.Reset()
 					}
 					m.isTyping = false
@@ -127,7 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "down", "j":
-			if m.focusedPane == 1 && m.cursor < len(m.items)-1 {
+			if m.focusedPane == 1 && m.cursor < len(m.endpoints)-1 {
 				m.cursor++
 			}
 
@@ -143,7 +143,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.focusedPane == 1 {
-				url := m.items[m.cursor]
+				url := m.endpoints[m.cursor]
 				m.response = fmt.Sprintf("Checking %s...", url)
 				return m, client.CheckServer(url)
 			}
@@ -177,7 +177,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	header := titleStyle.Render("Welcome to lazy-curl!") + "\n"
 	leftContent := ""
-	for i, item := range m.items {
+	for i, item := range m.endpoints {
 		cursor := " "
 		if m.cursor == i {
 			cursor = ">"
@@ -193,7 +193,7 @@ func (m Model) View() string {
 		if m.cursor == i && m.focusedPane == 1 {
 			leftContent += cursorStyle.Render(line) + "\n"
 		} else {
-			leftContent += itemStyle.Render(line) + "\n"
+			leftContent += endpointstyle.Render(line) + "\n"
 		}
 	}
 
@@ -246,7 +246,7 @@ func (m Model) View() string {
 
 	status := "\nStatus:" + statusStyle.Render(m.response) + "\n"
 
-	helper := itemStyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
+	helper := endpointstyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
 
 	return header + grid + status + helper
 }
