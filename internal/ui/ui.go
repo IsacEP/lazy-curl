@@ -167,9 +167,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.focusedPane == 1 {
 				rawEndpoint := m.endpoints[m.cursor]
+				method := "GET"
 				path := rawEndpoint
 				parts := strings.Fields(rawEndpoint)
 				if (len(parts)) > 1 {
+					method = parts[0]
 					path = parts[1]
 				}
 				cleanBase := strings.TrimSuffix(m.baseURL, "/")
@@ -180,7 +182,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fullURL = "http://" + fullURL
 				}
 				m.response = fmt.Sprintf("Checking %s...", fullURL)
-				return m, client.CheckServer(fullURL)
+				return m, client.SendRequest(fullURL, method, "")
 			}
 
 		case "n":
