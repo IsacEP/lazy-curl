@@ -38,6 +38,8 @@ type Model struct {
 	baseURLinput textinput.Model
 	methods []string
 	methodCursor int
+	width int
+	height int
 }
 
 func New() Model {
@@ -208,7 +210,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right":
 			m.focusedPane = (m.focusedPane + 1) % 3
 		}
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil		
 	}
+
 	return m, nil
 }
 
@@ -253,9 +261,22 @@ func (m Model) View() string {
 			topContent += "\nPress 'u' to add a new base URL"
 		}
 	}
-	topBox := baseBoxStyle.Copy().Width(94).Height(5)
-	leftBox := baseBoxStyle.Copy().Width(40).Height(15)
-	rightBox := baseBoxStyle.Copy().Width(50).Height(15)
+
+	padding := 4
+	topWidth := m.width - padding
+	if topWidth < 0 { topWidth = 0 }
+
+	leftWidth := (m.width / 2) - padding
+	rightWidth := m.width - leftWidth - (padding * 2)
+
+	topHeight := 4
+	verticalReserved := topHeight + 7
+	bottomHeight := m.height - verticalReserved
+	if bottomHeight < 0 { bottomHeight = 0 }
+
+	topBox := baseBoxStyle.Copy().Width(topWidth).Height(topHeight)
+	leftBox := baseBoxStyle.Copy().Width(leftWidth).Height(bottomHeight)
+	rightBox := baseBoxStyle.Copy().Width(rightWidth).Height(bottomHeight)
 
 	if m.focusedPane == 0 {
 		topBox = topBox.BorderForeground(activeBorder)
@@ -285,7 +306,7 @@ func (m Model) View() string {
 
 	status := "\nStatus:" + statusStyle.Render(m.response) + "\n"
 
-	helper := endpointstyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.\n")
+	helper := endpointstyle.Render("\nPress j/k to move, Space to select, Enter to check, q to quit.")
 
 	return header + grid + status + helper
 }
