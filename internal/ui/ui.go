@@ -278,7 +278,7 @@ func (m Model) View() string {
 	if bottomHeight < 0 { bottomHeight = 0 }
 
 	topBox := baseBoxStyle.Copy().Width(topWidth).Height(topHeight)
-	leftBox := baseBoxStyle.Copy().Width(leftWidth).Height(bottomHeight)
+	leftBox := baseBoxStyle.Copy().Width(leftWidth).Height(bottomHeight).MarginRight(2)
 	rightBox := baseBoxStyle.Copy().Width(rightWidth).Height(bottomHeight)
 
 	if m.focusedPane == 0 {
