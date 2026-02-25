@@ -168,6 +168,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.focusedPane == 1 {
+				if (m.endpoints[m.cursor] == "TEST") {
+					return m, client.CheckServer("https://jsonplaceholder.typicode.com/todos/1")
+				}
 				rawEndpoint := m.endpoints[m.cursor]
 				method := "GET"
 				path := rawEndpoint
