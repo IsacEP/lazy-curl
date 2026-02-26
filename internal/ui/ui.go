@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/IsacEP/lazy-curl/internal/client"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -40,6 +42,7 @@ type Model struct {
 	methodCursor int
 	width int
 	height int
+	bodyInput textarea.Model
 }
 
 func New() Model {
@@ -53,6 +56,13 @@ func New() Model {
 	urlti.CharLimit = 156
 	urlti.Width = 50
 
+	ta := textarea.New()
+	ta.Placeholder = "{\n  \"key\": \"value\"\n}"
+	ta.ShowLineNumbers = true
+	ta.SetWidth(80)
+	ta.SetHeight(6)
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Background(lipgloss.Color("57"))
+
 	return Model {
 		endpoints: []string{"TEST"},
 		selected: make(map[int]struct{}),
@@ -65,6 +75,7 @@ func New() Model {
 		baseURLinput: urlti,
 		methods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 		methodCursor: 0,
+		bodyInput: ta,
 	}
 }
 
@@ -88,6 +99,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.bodyInput.Focused() {
+			switch msg.String() {
+			case "esc":
+				m.bodyInput.Blur()
+				raw := m.bodyInput.Value()
+				if raw != "" {
+					var jsonMap map[string]interface{}
+					if err := json.Unmarshal([]byte(raw), &jsonMap); err == nil {
+						pretty, _ := json.MarshalIndent(jsonMap, "", "  ")
+						m.bodyInput.SetValue(string(pretty))
+					}
+				}
+				return m, nil
+			}
+			m.bodyInput, cmd = m.bodyInput.Update(msg)
+			return m, cmd
+		}
+
 		if m.isTyping {
 			switch msg.String() {
 			case "enter":
@@ -187,7 +216,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fullURL = "http://" + fullURL
 				}
 				m.response = fmt.Sprintf("Checking %s...", fullURL)
-				return m, client.SendRequest(fullURL, method, "")
+				bodyData := m.bodyInput.Value()
+				return m, client.SendRequest(fullURL, method, bodyData)
 			}
 
 		case "n":
@@ -202,6 +232,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput.Prompt = fmt.Sprintf("[%s] ", m.methods[m.methodCursor])
 				m.baseURLinput.Focus()
 				return m, textinput.Blink
+			}
+		case "b":
+			if m.focusedPane == 0 {
+				m.bodyInput.Focus()
+				return m, textarea.Blink
 			}
 		case "tab":
 			m.focusedPane = (m.focusedPane + 1) % 3
@@ -264,6 +299,8 @@ func (m Model) View() string {
 			topContent += "\nPress 'u' to add a new base URL"
 		}
 	}
+	topContent += "Request Body (Press 'b' to edit, 'Esc' to finish):\n"
+	topContent += m.bodyInput.View()
 
 	padding := 4
 	topWidth := m.width - padding
@@ -272,7 +309,7 @@ func (m Model) View() string {
 	leftWidth := (m.width / 2) - padding
 	rightWidth := m.width - leftWidth - (padding * 2)
 
-	topHeight := 4
+	topHeight := 12
 	verticalReserved := topHeight + 7
 	bottomHeight := m.height - verticalReserved
 	if bottomHeight < 0 { bottomHeight = 0 }
